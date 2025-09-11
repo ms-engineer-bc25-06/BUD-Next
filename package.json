@@ -1,5 +1,5 @@
 {
-  "name": "section9_teamc-monorepo",
+  "name": "bud-next",
   "private": true,
   "scripts": {
     "prepare": "husky install",
