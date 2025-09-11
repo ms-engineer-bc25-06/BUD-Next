@@ -1,0 +1,68 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: bud-next-app
+  annotations:
+    run.googleapis.com/ingress: all
+    run.googleapis.com/ingress-status: all
+spec:
+  template:
+    metadata:
+      annotations:
+        # オートスケーリング設定
+        autoscaling.knative.dev/maxScale: "10"
+        autoscaling.knative.dev/minScale: "0"
+        # CPU設定
+        run.googleapis.com/cpu-throttling: "false"
+        run.googleapis.com/execution-environment: gen2
+        # タイムアウト
+        run.googleapis.com/timeout: "300"
+    spec:
+      containerConcurrency: 100
+      timeoutSeconds: 300
+      containers:
+      - image: asia-northeast1-docker.pkg.dev/bud-next-hackathon/bud-repo/bud-next-app:latest
+        ports:
+        - containerPort: 8000
+        env:
+        # Google Cloud設定
+        - name: GOOGLE_CLOUD_PROJECT_ID
+          value: "bud-next-hackathon"
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: "/app/secrets/serviceAccountKey.json"
+        
+        # アプリケーション設定
+        - name: ENVIRONMENT
+          value: "production"
+        - name: PORT
+          value: "8000"
+        - name: PYTHONPATH
+          value: "/app"
+        
+        # データベース設定（Cloud SQL用）
+        - name: DATABASE_URL
+          value: "postgresql://bud_user:bud_password@/bud_db?host=/cloudsql/bud-next-hackathon:asia-northeast1:bud-db"
+        
+        resources:
+          limits:
+            cpu: "1000m"
+            memory: "1Gi"
+          requests:
+            cpu: "500m"
+            memory: "512Mi"
+        
+        volumeMounts:
+        - name: cloudsql
+          mountPath: /cloudsql
+          readOnly: true
+        - name: secret-volume
+          mountPath: /app/secrets
+          readOnly: true
+          
+      volumes:
+      - name: cloudsql
+        csi:
+          driver: gcp-compute-persistent-disk-csi-driver
+      - name: secret-volume
+        secret:
+          secretName: bud-service-account
