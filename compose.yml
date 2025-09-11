@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile.dev
     command: npm run dev -- -H 0.0.0.0 -p 3000
     ports:
-      - '3001:3000'
+      - "3001:3000"
     volumes:
       - ./frontend:/app
       - /app/node_modules
@@ -16,31 +16,33 @@ services:
       - backend
     networks:
       - app-network
-
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile.dev
     ports:
-      - '8001:8000'
+      - "8001:8000"
     volumes:
       - ./backend:/app
       - /app/__pycache__
+      # Google Cloud認証用サービスアカウントキー（Gemini API用）
+      - ./backend/serviceAccountKey.json:/app/serviceAccountKey.json:ro
     env_file:
       - ./backend/.env
     environment:
       - PYTHONPATH=/app
       - PYTHONUNBUFFERED=1
+      # Google Cloud認証設定
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/serviceAccountKey.json
     depends_on:
       - db
     networks:
       - app-network
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000
-
   db:
     image: postgres:15-alpine
     ports:
-      - '5434:5432'
+      - "5434:5432"
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-bud_user}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-bud_password}
@@ -53,17 +55,15 @@ services:
     healthcheck:
       test:
         [
-          'CMD-SHELL',
-          'pg_isready -U ${POSTGRES_USER:-bud_user} -d ${POSTGRES_DB:-bud_db}',
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-bud_user} -d ${POSTGRES_DB:-bud_db}",
         ]
       interval: 5s
       timeout: 5s
       retries: 5
-
 volumes:
   postgres_data:
     driver: local
-
 networks:
   app-network:
     driver: bridge

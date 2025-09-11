@@ -35,7 +35,8 @@ if not firebase_admin._apps:
     except Exception as e:
         print(f"❌ Firebase初期化エラー: {e}")
         print("⚠️ 正しいserviceAccountKey.jsonをプロジェクトルートに配置してください")
-        raise e
+        # 起動は継続し、認証が必要なエンドポイントでのみエラーにする
+        # 本番では必ず serviceAccountKey.json を配置すること
 
 # 2. トークンを取得するための仕組み
 security = HTTPBearer()
