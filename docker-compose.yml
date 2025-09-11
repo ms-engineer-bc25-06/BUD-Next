@@ -26,6 +26,8 @@ services:
     volumes:
       - ./backend:/app
       - /app/__pycache__
+      - ./serviceAccountKey.json:/app/serviceAccountKey.json:ro
+
     env_file:
       - ./backend/.env
     environment:
