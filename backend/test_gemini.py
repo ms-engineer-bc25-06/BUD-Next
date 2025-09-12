@@ -1,20 +1,21 @@
-import os
-import google.generativeai as genai
+import asyncio
+from app.ai.clients.gemini_client import GeminiClient
 
-# 環境変数から API キーを取得
-api_key = os.environ.get("GEMINI_API_KEY")
-if not api_key:
-    raise ValueError("GEMINI_API_KEY が設定されていません")
 
-# Gemini API を設定
-genai.configure(api_key=api_key)
+async def main():
+    client = GeminiClient(api_key="DUMMY_API_KEY")
 
-# 使用するモデルを指定（正しいモデル名を確認してください）
-model = genai.GenerativeModel("gemini-2.0-flash")
+    # フィードバック生成テスト
+    feedback = await client.generate_feedback("I like apple.", max_chars=50)
+    print("Gemini フィードバック:", feedback)
 
-# テストメッセージを生成
-response = model.generate_content("Hello, Gemini!")
+    # フレーズ提案テスト
+    phrases = await client.suggest_phrases("I like apple.")
+    print("Gemini フレーズ提案:")
+    for p in phrases:
+        print("-", p)
 
-# 結果を出力
-print("Gemini からのレスポンス:")
-print(response.text)
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
