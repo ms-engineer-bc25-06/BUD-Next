@@ -1,6 +1,6 @@
 // API関連定数
 export const API_CONFIG = {
-  BASE_URL: 'http://localhost:8000',
+  BASE_URL: 'http://localhost:8001',
   ENDPOINTS: {
     HEALTH: '/health',
     AUTH: {
