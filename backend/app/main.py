@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.api.routers import ai_feedback, auth, children, logging_control
 from app.api.routers.voice import router as voice_router
+from app.routers import speech
 from app.core.database import get_db
 from app.utils.auth import verify_firebase_token
 from app.core.logging_config import get_logger, setup_logging
@@ -29,15 +30,12 @@ class LoginRequest(BaseModel):
 
 app = FastAPI(title="BUD Backend API")
 
-# ミドルウェアを追加（順序重要：トレーサビリティ → 性能測定 → エラーハンドリング）
-app.add_middleware(TraceabilityMiddleware)
-app.add_middleware(PerformanceMonitoringMiddleware)
-app.add_middleware(ErrorHandlerMiddleware)
-
+# CORSを最初に追加（重要！）
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
+        "http://localhost:3001", 
         "https://section9-team-c.vercel.app",
         "https://*.vercel.app",
     ],
@@ -45,6 +43,11 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
+
+# 他のミドルウェアは後に追加
+app.add_middleware(TraceabilityMiddleware)
+app.add_middleware(PerformanceMonitoringMiddleware)
+app.add_middleware(ErrorHandlerMiddleware)
 
 
 @app.get("/health")
@@ -93,3 +96,6 @@ app.include_router(logging_control.router, prefix="/api/admin", tags=["admin"])
 
 # Voice Transcription API
 app.include_router(voice_router)
+
+# Speech-to-Text API
+app.include_router(speech.router)
