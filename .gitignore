@@ -261,3 +261,5 @@ backend/.env
 speech-key.json
 *.json
 serviceAccountKey.json
+google-speech-credentials.json
+serviceAccountKey.json
