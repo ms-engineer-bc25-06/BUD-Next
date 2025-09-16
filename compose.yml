@@ -32,6 +32,7 @@ services:
     environment:
       - PYTHONPATH=/app
       - PYTHONUNBUFFERED=1
+        - GEMINI_API_KEY=AIzaSyA8o08RvhAQvI11nm9wreFkIg5yRI8Gyjo
       # Google Cloud認証設定
       - GOOGLE_APPLICATION_CREDENTIALS=/app/serviceAccountKey.json
     depends_on:
