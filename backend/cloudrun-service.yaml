@@ -1,0 +1,69 @@
+# Cloud Run設定ファイル
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: bud-next-backend
+  annotations:
+    run.googleapis.com/ingress: all
+    run.googleapis.com/ingress-status: all
+spec:
+  template:
+    metadata:
+      annotations:
+        # オートスケーリング設定
+        autoscaling.knative.dev/minScale: "0"
+        autoscaling.knative.dev/maxScale: "10"
+        # CPU・メモリ設定
+        run.googleapis.com/cpu-throttling: "false"
+        run.googleapis.com/execution-environment: gen2
+    spec:
+      serviceAccountName: bud-speech-service@bud-next.iam.gserviceaccount.com
+      containerConcurrency: 80
+      timeoutSeconds: 300
+      containers:
+      - image: gcr.io/bud-next/backend:latest
+        ports:
+        - name: http1
+          containerPort: 8000
+        resources:
+          limits:
+            cpu: "1"
+            memory: "1Gi"
+          requests:
+            cpu: "0.5"
+            memory: "512Mi"
+        env:
+        - name: ENVIRONMENT
+          value: "production"
+        - name: GOOGLE_CLOUD_PROJECT
+          value: "bud-next"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: database-url
+              key: url
+        - name: GEMINI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: gemini-api-key
+              key: key
+        - name: FIREBASE_PROJECT_ID
+          value: "bud-next"
+        # ヘルスチェック設定
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 10
+          timeoutSeconds: 5
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 5
+          timeoutSeconds: 5
+          periodSeconds: 5
+  traffic:
+  - percent: 100
+    latestRevision: true
