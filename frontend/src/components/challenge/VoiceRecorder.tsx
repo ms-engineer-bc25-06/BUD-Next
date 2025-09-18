@@ -1,91 +1,235 @@
-// 音声録音コンポーネント - テスト可能な分離
+// frontend/src/components/challenge/VoiceRecorder.tsx
+'use client';
 
 import { Button } from '@/components/ui/button';
-import { Mic, Volume2, Save } from 'lucide-react';
-import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
+import { Mic, Square, Upload } from 'lucide-react';
+import { useRef, useState } from 'react';
 
 interface VoiceRecorderProps {
-  onTranscriptionSave: (transcription: string) => Promise<void>;
-  disabled?: boolean;
+  onTranscriptionComplete: (text: string, feedback: any) => void;
+  isLoading?: boolean;
 }
 
-export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
-  onTranscriptionSave,
-  disabled = false,
-}) => {
-  const {
-    isListening,
-    transcription,
-    isProcessing,
-    isSupported,
-    startListening,
-    stopListening,
-    resetTranscription,
-  } = useSpeechRecognition();
+export function VoiceRecorder({ 
+  onTranscriptionComplete, 
+  isLoading = false 
+}: VoiceRecorderProps) {
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingMethod, setRecordingMethod] = useState<'web' | 'upload'>('web');
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
 
-  const handleSave = async () => {
-    if (transcription.trim()) {
-      await onTranscriptionSave(transcription);
-      resetTranscription();
+  // Web Speech API (リアルタイム)
+  const startWebSpeech = () => {
+    if (!('webkitSpeechRecognition' in window)) {
+      alert('このブラウザは音声認識をサポートしていません');
+      return;
+    }
+
+    const recognition = new (window as any).webkitSpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US'; // 英語設定
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => {
+      setIsRecording(true);
+    };
+
+    recognition.onresult = async (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      const confidence = event.results[0][0].confidence;
+      
+      console.log('Web Speech結果:', { transcript, confidence });
+      
+      // AIフィードバック取得（既存APIサービスとの統合）
+      try {
+        const { voiceRecorderAPI } = await import('@/services/apiIntegration');
+        const { transcript: processedText, feedback, error } = await voiceRecorderAPI.processWebSpeechWithFeedback(transcript, confidence);
+        
+        if (error) {
+          console.error('フィードバック取得エラー:', error);
+          onTranscriptionComplete(transcript, null);
+        } else {
+          onTranscriptionComplete(processedText, feedback);
+        }
+      } catch (error) {
+        console.error('フィードバック取得エラー:', error);
+        onTranscriptionComplete(transcript, null);
+      }
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error('音声認識エラー:', event.error);
+      setIsRecording(false);
+    };
+
+    recognition.onend = () => {
+      setIsRecording(false);
+    };
+
+    recognition.start();
+  };
+
+  // MediaRecorder API (高品質)
+  const startMediaRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          sampleRate: 16000,
+          channelCount: 1,
+          echoCancellation: true,
+          noiseSuppression: true
+        }
+      });
+
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: 'audio/webm;codecs=opus'
+      });
+
+      mediaRecorderRef.current = mediaRecorder;
+      chunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          chunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' });
+        await uploadAudioFile(audioBlob);
+        
+        // ストリームを停止
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      setIsRecording(true);
+      mediaRecorder.start();
+
+      // 30秒で自動停止
+      setTimeout(() => {
+        if (mediaRecorder.state === 'recording') {
+          stopRecording();
+        }
+      }, 30000);
+
+    } catch (error) {
+      console.error('録音開始エラー:', error);
+      alert('マイクへのアクセスが拒否されました');
     }
   };
 
-  if (!isSupported) {
-    return (
-      <div className="text-center p-4 bg-gray-100 rounded-lg">
-        このブラウザは音声認識をサポートしていません
-      </div>
-    );
-  }
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      mediaRecorderRef.current.stop();
+    }
+    setIsRecording(false);
+  };
+
+  // 音声ファイルアップロード（既存APIサービスとの統合）
+  const uploadAudioFile = async (audioBlob: Blob) => {
+    try {
+      const { voiceRecorderAPI } = await import('@/services/apiIntegration');
+      const { transcript, feedback, confidence, error } = await voiceRecorderAPI.processAudioFileWithFeedback(audioBlob);
+
+      if (error) {
+        console.error('音声アップロードエラー:', error);
+        onTranscriptionComplete('', { error });
+      } else {
+        console.log('Google Speech結果:', { transcript, confidence });
+        onTranscriptionComplete(transcript, feedback);
+      }
+    } catch (error) {
+      console.error('音声アップロードエラー:', error);
+      onTranscriptionComplete('', { error: '音声変換に失敗しました' });
+    }
+  };
+
+  // ファイル選択アップロード
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // ファイルサイズチェック (5MB制限)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('ファイルサイズが大きすぎます（5MB以下にしてください）');
+      return;
+    }
+
+    await uploadAudioFile(file);
+  };
 
   return (
     <div className="space-y-4">
-      {/* 録音コントロール */}
-      <div className="flex justify-center space-x-4">
+      {/* 録音方法選択 */}
+      <div className="flex gap-2 mb-4">
         <Button
-          onClick={isListening ? stopListening : startListening}
-          disabled={disabled || isProcessing}
-          variant={isListening ? 'destructive' : 'default'}
-          size="lg"
-          className="min-w-[120px]"
+          variant={recordingMethod === 'web' ? 'default' : 'outline'}
+          onClick={() => setRecordingMethod('web')}
+          size="sm"
         >
-          <Mic className="w-5 h-5 mr-2" />
-          {isProcessing ? '準備中...' : isListening ? '停止' : '録音開始'}
+          リアルタイム認識
         </Button>
-
-        {transcription && (
-          <Button
-            onClick={handleSave}
-            disabled={disabled || !transcription.trim()}
-            variant="outline"
-            size="lg"
-          >
-            <Save className="w-5 h-5 mr-2" />
-            保存
-          </Button>
-        )}
+        <Button
+          variant={recordingMethod === 'upload' ? 'default' : 'outline'}
+          onClick={() => setRecordingMethod('upload')}
+          size="sm"
+        >
+          高品質録音
+        </Button>
       </div>
 
-      {/* 文字起こし結果 */}
-      {transcription && (
-        <div className="bg-gray-50 p-4 rounded-lg min-h-[100px]">
-          <div className="flex items-center mb-2">
-            <Volume2 className="w-5 h-5 mr-2 text-blue-500" />
-            <span className="font-medium">認識された音声:</span>
+      {/* 録音ボタン */}
+      {recordingMethod === 'web' ? (
+        <Button
+          onClick={startWebSpeech}
+          disabled={isRecording || isLoading}
+          className={`w-full ${isRecording ? 'bg-red-500 animate-pulse' : 'bg-blue-500'}`}
+        >
+          <Mic className="mr-2" />
+          {isRecording ? '話してください...' : '録音開始 (Web Speech)'}
+        </Button>
+      ) : (
+        <div className="space-y-2">
+          <Button
+            onClick={isRecording ? stopRecording : startMediaRecording}
+            disabled={isLoading}
+            className={`w-full ${isRecording ? 'bg-red-500 animate-pulse' : 'bg-green-500'}`}
+          >
+            {isRecording ? <Square className="mr-2" /> : <Mic className="mr-2" />}
+            {isRecording ? '録音停止' : '高品質録音開始'}
+          </Button>
+          
+          {/* ファイルアップロード */}
+          <div className="relative">
+            <input
+              type="file"
+              accept="audio/*"
+              onChange={handleFileUpload}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              disabled={isLoading}
+            />
+            <Button variant="outline" className="w-full" disabled={isLoading}>
+              <Upload className="mr-2" />
+              音声ファイルをアップロード
+            </Button>
           </div>
-          <p className="text-gray-700 whitespace-pre-wrap">{transcription}</p>
         </div>
       )}
 
-      {/* 録音状態表示 */}
-      {isListening && (
-        <div className="text-center">
-          <div className="inline-flex items-center space-x-2 text-red-500">
-            <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-            <span>録音中...</span>
-          </div>
+      {/* ステータス表示 */}
+      {isRecording && (
+        <div className="text-center text-sm text-gray-600">
+          🎤 録音中... (最大30秒)
+        </div>
+      )}
+      
+      {isLoading && (
+        <div className="text-center text-sm text-gray-600">
+          🤖 AI分析中...
         </div>
       )}
     </div>
   );
-};
+}

@@ -9,14 +9,26 @@ export const voiceApi = {
   saveTranscription: async ({
     childId,
     transcription,
+    aiFeedback,
+    source = 'web_speech',
+    confidence,
+    duration,
   }: {
     childId: string;
     transcription: string;
+    aiFeedback?: any;
+    source?: string;
+    confidence?: number;
+    duration?: number;
   }) => {
     try {
       return await ApiService.post(ENDPOINTS.VOICE.TRANSCRIBE, {
         child_id: childId,
         transcript: transcription,
+        aiFeedback,
+        source,
+        confidence,
+        duration,
       });
     } catch (error) {
       logger.error('文字起こしエラー:', error);
