@@ -1,7 +1,5 @@
 import { API_CONFIG } from '@/constants/api';
 import { UI_CONFIG } from '@/constants/ui';
-import { ERROR_MESSAGES } from '@/constants/messages';
-import { handleApiError } from '@/utils/error-handler';
 import { logger } from '@/utils/logger';
 
 const { BASE_URL, ENDPOINTS } = API_CONFIG;

@@ -22,6 +22,7 @@ interface RecordsListProps {
 }
 
 export function RecordsList({ records, loading, deletingId, onDelete }: RecordsListProps) {
+  // 読み込み中
   if (loading) {
     return (
       <Card className="w-full rounded-xl bg-white/80 p-6 shadow-md backdrop-blur-sm text-center">
@@ -33,6 +34,7 @@ export function RecordsList({ records, loading, deletingId, onDelete }: RecordsL
     );
   }
 
+  // データが無いとき
   if (records.length === 0) {
     return (
       <Card className="w-full rounded-xl bg-white/80 p-6 shadow-md backdrop-blur-sm text-center">
@@ -41,6 +43,7 @@ export function RecordsList({ records, loading, deletingId, onDelete }: RecordsL
     );
   }
 
+  // 一覧表示
   return (
     <div className="w-full space-y-4 mb-8">
       {records.map((record) => (
@@ -48,23 +51,25 @@ export function RecordsList({ records, loading, deletingId, onDelete }: RecordsL
           key={record.id}
           className="w-full rounded-xl bg-white/80 p-4 shadow-md backdrop-blur-sm"
         >
-          <CardContent className="p-0 flex items-center justify-between">
-            <div className="flex items-center">
+          <CardContent className="p-0 flex flex-wrap md:flex-nowrap items-center justify-between gap-4">
+            {/* 左ブロック：アイコン＋テキスト */}
+            <div className="flex items-center min-w-0 flex-1">
               <CalendarDays className="h-8 w-8 text-purple-400 mr-4 flex-shrink-0" />
-              <div>
-                <p className="text-lg font-semibold text-gray-700">
+              <div className="min-w-0">
+                <p className="text-lg font-semibold text-gray-700 whitespace-nowrap">
                   {format(parseISO(record.date), 'yyyy年MM月dd日 (EEE)', { locale: ja })}
                 </p>
-                <p className="text-sm text-gray-500">{record.summary}</p>
+                <p className="text-sm text-gray-500 truncate">{record.summary}</p>
               </div>
             </div>
 
-            <div className="flex items-center space-x-2">
+            {/* 右ブロック：詳細・削除ボタン */}
+            <div className="flex items-center space-x-2 shrink-0">
               <Button
                 asChild
                 variant="outline"
                 size="sm"
-                className="rounded-full text-blue-500 border-blue-300 hover:bg-blue-50"
+                className="rounded-full text-blue-500 border-blue-300 hover:bg-blue-50 whitespace-nowrap"
               >
                 <Link href={`/history/${record.childId}/${record.id}`}>詳細</Link>
               </Button>
