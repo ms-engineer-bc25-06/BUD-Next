@@ -1,5 +1,5 @@
-import { ApiService } from '@/services/apiService';
 import { API_CONFIG } from '@/constants/api';
+import { ApiService } from '@/services/apiService';
 import { logger } from '@/utils/logger';
 
 const { ENDPOINTS } = API_CONFIG;

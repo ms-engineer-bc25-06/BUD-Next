@@ -28,7 +28,7 @@ export default function ChildrenPage() {
   useEffect(() => {
     if (apiChildren) {
       const transformedChildren = apiChildren.map((child) => ({
-        id: child.id.toString(), // string変換を追加
+        id: child.id.toString(),
         name: child.nickname || child.name,
         age: child.birthdate
           ? new Date().getFullYear() - new Date(child.birthdate).getFullYear()
@@ -65,7 +65,17 @@ export default function ChildrenPage() {
 
         {/* メインコンテンツ */}
         <main className="flex w-full max-w-xl flex-1 flex-col items-center justify-center py-4 sm:py-8 px-2 sm:px-0">
-          <h2 className="mb-6 sm:mb-8 text-center text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-800 flex items-center justify-center gap-3">
+          {/* がんばってみようタイトル */}
+          <h2
+            className="
+              mb-6 sm:mb-8 
+              inline-flex items-center justify-center 
+              text-3xl sm:text-4xl md:text-5xl lg:text-6xl 
+              font-bold text-gray-800 
+              gap-2 sm:gap-3 
+              whitespace-nowrap flex-shrink-0
+            "
+          >
             <Star className="h-6 w-6 sm:h-8 sm:w-8 text-yellow-500 fill-yellow-500" />
             がんばってみよう
             <Star className="h-6 w-6 sm:h-8 sm:w-8 text-yellow-500 fill-yellow-500" />

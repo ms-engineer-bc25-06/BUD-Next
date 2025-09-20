@@ -14,9 +14,9 @@ export function NavigationFooter() {
         {/* なまえをつくる */}
         <Button
           onClick={() => router.push('/children/register')}
-          className="flex-1 min-w-[140px] bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold py-2 text-sm"
+          className="flex-1 min-w-[140px] bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-semibold py-3 text-base rounded-lg flex justify-center items-center"
         >
-          <Plus className="h-4 w-4 mr-1" />
+          <Plus className="h-5 w-5 mr-2" />
           なまえをつくる
         </Button>
 
@@ -24,9 +24,9 @@ export function NavigationFooter() {
         <Button
           variant="outline"
           onClick={() => router.push('/history')}
-          className="flex-1 min-w-[140px] bg-white border-2 border-blue-300 hover:bg-blue-50 text-blue-700 font-semibold py-2 text-sm"
+          className="flex-1 min-w-[140px] bg-white border-2 border-blue-300 hover:bg-blue-50 text-blue-700 font-semibold py-3 text-base rounded-lg flex justify-center items-center"
         >
-          <BookOpen className="h-4 w-4 mr-1" />
+          <BookOpen className="h-6 w-6 mr-2" /> {/* ← アイコンを大きく */}
           ふりかえり
         </Button>
 
@@ -34,9 +34,9 @@ export function NavigationFooter() {
         <Button
           variant="outline"
           onClick={() => router.push('/upgrade')}
-          className="flex-1 min-w-[140px] bg-gradient-to-r from-amber-50 to-yellow-50 border-2 border-amber-300 hover:bg-gradient-to-r hover:from-amber-100 hover:to-yellow-100 text-amber-700 font-semibold py-2 text-sm"
+          className="flex-1 min-w-[140px] bg-gradient-to-r from-amber-50 to-yellow-50 border-2 border-amber-300 hover:bg-gradient-to-r hover:from-amber-100 hover:to-yellow-100 text-amber-700 font-semibold py-3 text-base rounded-lg flex justify-center items-center"
         >
-          <Gem className="h-4 w-4 mr-1 text-amber-500" />
+          <Gem className="h-5 w-5 mr-2 text-amber-500" />
           ステップアップ
         </Button>
       </div>
