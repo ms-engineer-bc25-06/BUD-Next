@@ -1,6 +1,6 @@
 // API関連定数
 export const API_CONFIG = {
-  BASE_URL: 'http://localhost:8001',
+  BASE_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8001',
   ENDPOINTS: {
     HEALTH: '/health',
     AUTH: {
@@ -16,7 +16,7 @@ export const API_CONFIG = {
       TRANSCRIBE: '/api/voice/transcribe',
       TRANSCRIPT: (id: string) => `/api/voice/transcript/${id}`,
       HISTORY: (childId: string) => `/api/voice/history/${childId}`,
-      CHALLENGE: '/api/voice/challenge', // 🚀 修正: transcribe → challenge
+      CHALLENGE: '/api/voice/challenge',
     },
     FEEDBACK: {
       GENERATE: (transcriptId: string) => `/api/voice/transcript/${transcriptId}`,
