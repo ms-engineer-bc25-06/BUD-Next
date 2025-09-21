@@ -1,0 +1,186 @@
+﻿'use client';
+
+import { createChild } from '@/app/(app)/children/childApi';
+import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
+import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
+import { ArrowLeft, CalendarIcon } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+
+export default function ChildRegisterPage() {
+  // フォームの状態管理
+  const [nickname, setNickname] = useState('');
+  const [birthDate, setBirthDate] = useState<Date | undefined>(undefined);
+  const [loading, setLoading] = useState(false);
+
+  // Next.js と認証のフック
+  const router = useRouter();
+  const { toast } = useToast();
+  const { user } = useAuth();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // バリデーション：誕生日必須チェック
+    if (!birthDate) {
+      toast({
+        variant: 'destructive',
+        title: '入力エラー',
+        description: '誕生日を入力してください。',
+      });
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      // 認証チェック
+      if (!user) {
+        toast({
+          variant: 'destructive',
+          title: '認証エラー',
+          description: 'ログインが必要です',
+        });
+        return;
+      }
+
+      // Firebase IDトークン取得
+      const token = await user.getIdToken();
+
+      // API呼び出し（子ども登録）
+      await createChild(
+        {
+          nickname: nickname,
+          birthdate: birthDate.toISOString().split('T')[0], // YYYY-MM-DD形式
+        },
+        token
+      );
+
+      // 成功時の処理
+      toast({
+        title: '登録完了 🎉',
+        description: `${nickname} を追加しました。`,
+      });
+
+      // 子どもリストページに遷移（トーストを表示してから遷移）
+      setTimeout(() => router.push('/children'), 1000);
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : typeof err === 'string' ? err : '登録に失敗しました。';
+
+      toast({
+        variant: 'destructive',
+        title: '登録エラー',
+        description: message,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50 p-4 sm:p-6 lg:p-8">
+      {/* 戻るボタン */}
+      <div className="absolute top-4 left-4">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
+          onClick={() => router.push('/children')}
+        >
+          <ArrowLeft className="h-4 w-4" />
+          もどる
+        </Button>
+      </div>
+
+      {/* メインカード */}
+      <Card className="w-full max-w-md rounded-xl bg-white/80 p-6 shadow-lg backdrop-blur-sm sm:p-8 md:p-10">
+        <CardContent className="p-0">
+          <h1 className="mb-6 text-center text-2xl font-bold text-gray-800 sm:text-3xl">
+            なまえを教えてね
+          </h1>
+          <p className="mb-8 text-center text-gray-600 text-sm sm:text-base">
+            たのしく遊べるように、少しだけ聞かせてね
+          </p>
+
+          {/* 登録フォーム */}
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* ニックネーム入力 */}
+            <div>
+              <Label
+                htmlFor="nickname"
+                className="text-base sm:text-lg font-medium text-gray-700 mb-2 block"
+              >
+                なまえ
+              </Label>
+              <p className="text-sm text-gray-500 mb-2">ニックネームでもOK！</p>
+              <Input
+                id="nickname"
+                type="text"
+                placeholder="例: ひなたちゃん"
+                value={nickname}
+                onChange={(e) => setNickname(e.target.value)}
+                required
+                className="w-full rounded-lg border border-gray-300 p-3 text-base focus:border-blue-400 focus:ring-blue-400"
+              />
+            </div>
+
+            {/* 誕生日選択 */}
+            <div>
+              <Label
+                htmlFor="birthDate"
+                className="text-base sm:text-lg font-medium text-gray-700 mb-2 block"
+              >
+                おたんじょう日🎂
+              </Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className={cn(
+                      'w-full justify-start text-left font-normal rounded-lg border border-gray-300 p-3 text-base',
+                      !birthDate && 'text-muted-foreground'
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-5 w-5" />
+                    {birthDate ? format(birthDate, 'yyyy年MM月dd日') : <span>生年月日を選択</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={birthDate}
+                    onSelect={setBirthDate}
+                    autoFocus
+                    captionLayout="dropdown"
+                    startMonth={new Date(new Date().getFullYear() - 15, 0)} // fromYearの代替
+                    endMonth={new Date(new Date().getFullYear(), 11)} // toYearの代替
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {/* 登録ボタン */}
+            <Button
+              type="submit"
+              disabled={loading}
+              className="w-full h-12 text-base sm:text-lg font-bold rounded-full bg-green-500 hover:bg-green-600 text-white disabled:opacity-70 disabled:cursor-not-allowed transition-colors mt-8"
+            >
+              {loading ? '登録中...' : '登録する'}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

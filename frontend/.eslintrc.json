@@ -1,0 +1,5 @@
+{
+  "extends": ["next"],
+  "ignorePatterns": [".next", "node_modules", "dist", "build", "coverage"],
+  "rules": { "react/no-children-prop": "off", "@typescript-eslint/no-require-imports": "off" }
+}

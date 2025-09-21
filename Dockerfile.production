@@ -1,0 +1,59 @@
+# BUD-Next Cloud Run用 本番最適化 Dockerfile
+
+# Stage 1: Frontend Build
+FROM node:18-alpine AS frontend-builder
+
+WORKDIR /app
+COPY frontend/package*.json ./
+RUN npm ci --only=production
+
+COPY frontend/ ./
+RUN npm run build
+
+# Stage 2: Backend Production
+FROM python:3.11-slim AS backend
+
+WORKDIR /app
+
+# システム依存関係（PostgreSQL + 最小限）
+RUN apt-get update && apt-get install -y \
+    gcc \
+    libpq-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Python依存関係（本番用のみ）
+COPY backend/requirements.txt ./
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt
+
+# アプリケーションコードをコピー
+COPY backend/ ./
+
+# フロントエンドビルド結果をコピー
+COPY --from=frontend-builder /app/dist ./static/ 2>/dev/null || echo "Frontend build not found"
+
+# Google Cloud認証ファイル用ディレクトリ
+RUN mkdir -p /app/secrets
+
+# セキュリティ: 非rootユーザー作成
+RUN groupadd -r appuser && useradd -r -g appuser appuser \
+    && chown -R appuser:appuser /app
+USER appuser
+
+# 環境変数設定
+ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
+ENV PORT=8000
+ENV ENVIRONMENT=production
+
+# ポート公開
+EXPOSE 8000
+
+# ヘルスチェック（FastAPIの想定エンドポイント）
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:8000/health || curl -f http://localhost:8000/ || exit 1
+
+# 起動コマンド（既存構成に合わせてapp.main使用）
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

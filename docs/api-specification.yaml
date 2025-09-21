@@ -1,0 +1,534 @@
+openapi: 3.0.3
+info:
+  title: BUD API
+  version: 1.0.0
+  description: |
+    子どもチャレンジ応援アプリ『BUD』のAPI仕様書
+
+    ## 概要
+    BUDは、小学生が外国人との対面交流にチャレンジすることを支援するアプリです。
+    親子で成功体験を記録し、振り返ることができます。
+
+servers:
+  - url: http://localhost:8000/api
+    description: ローカル開発環境
+  - url: https://api.bud-app.com/v1
+    description: 本番環境（予定）
+
+tags:
+  - name: health
+    description: ヘルスチェック関連
+  - name: auth
+    description: 認証関連のエンドポイント
+  - name: children
+    description: 子ども管理関連のエンドポイント
+  - name: voice
+    description: 音声認識・チャレンジ関連のエンドポイント
+  - name: ai-feedback
+    description: AIフィードバック関連のエンドポイント
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Firebase Authentication で取得した **IDトークン** を `Authorization: Bearer <idToken>` で送信
+
+paths:
+  /health:
+    get:
+      summary: APIの稼働状態を確認
+      tags: [health]
+      responses:
+        '200':
+          description: APIは正常に稼働中
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: healthy }
+                  timestamp: { type: string, format: date-time }
+                  service: { type: string, example: BUD }
+                  version: { type: string, example: 1.0.0 }
+
+  /health/detailed:
+    get:
+      summary: 詳細なヘルスチェック（DB/システム情報）
+      tags: [health]
+      responses:
+        '200':
+          description: DBやシステムリソースを含む詳細な状態
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: healthy }
+                  timestamp: { type: string, format: date-time }
+                  service: { type: string }
+                  version: { type: string }
+                  environment: { type: string, example: development }
+                  checks:
+                    type: object
+                    properties:
+                      database:
+                        type: object
+                        properties:
+                          status: { type: string, example: healthy }
+                          response_time_ms: { type: number, example: 12.34 }
+                      async_database:
+                        type: object
+                        properties:
+                          status: { type: string, example: healthy }
+                  system:
+                    type: object
+                    properties:
+                      cpu_percent: { type: number, example: 14.2 }
+                      memory_percent: { type: number, example: 63.5 }
+                      disk_percent: { type: number, example: 71.0 }
+        '503':
+          description: 異常あり
+
+  /health/readiness:
+    get:
+      summary: 準備状態チェック（Kubernetes等で使用）
+      tags: [health]
+      responses:
+        '200':
+          {
+            description: 準備完了,
+            content:
+              {
+                application/json:
+                  {
+                    schema:
+                      {
+                        type: object,
+                        properties:
+                          { status: { type: string, example: ready } },
+                      },
+                  },
+              },
+          }
+        '503': { description: 未準備 }
+
+  /health/liveness:
+    get:
+      summary: 生存確認（Kubernetes等で使用）
+      tags: [health]
+      responses:
+        '200':
+          description: 稼働中
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: alive }
+                  timestamp: { type: string, format: date-time }
+
+  /auth/test:
+    get:
+      summary: Firebase認証テスト
+      description: |
+        Googleログイン後にフロントエンドで取得した **Firebase IDトークン** を
+        `Authorization: Bearer <idToken>` として送信することで認証できます。
+        このエンドポイントは、トークン検証が正しく行えるかを確認するためのものです。
+      tags: [auth]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 認証成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string, example: 認証テスト成功 }
+                  user_id: { type: string, example: firebase-uid-123 }
+                  email: { type: string, example: parent@example.com }
+                  name: { type: string, example: 山田太郎 }
+        '401':
+          description: 認証失敗
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail: { type: string, example: 認証に失敗しました }
+
+  /children:
+    get:
+      summary: 子ども一覧を取得
+      tags: [children]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: 子ども一覧の取得成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id: { type: string, example: child_001 }
+                    name: { type: string, example: たろう }
+                    birthdate: { type: string, example: 2017-05-01 }
+                    createdAt:
+                      {
+                        type: string,
+                        format: date-time,
+                        example: 2024-08-01T10:00:00Z,
+                      }
+    post:
+      summary: 子どもを登録
+      tags: [children]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, birthdate]
+              properties:
+                name: { type: string, example: はなこ }
+                birthdate:
+                  {
+                    type: string,
+                    example: 2018-03-20,
+                    description: 生年月日(ISO8601),
+                  }
+      responses:
+        '201':
+          description: 登録成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string, example: child_002 }
+                  name: { type: string, example: はなこ }
+                  birthdate: { type: string, example: 2018-03-20 }
+                  createdAt: { type: string, format: date-time }
+
+  /children/{childId}:
+    get:
+      summary: 特定の子どもを取得
+      tags: [children]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: childId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: 子ども情報
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string }
+                  name: { type: string }
+                  birthdate: { type: string }
+                  createdAt: { type: string, format: date-time }
+        '404': { description: 見つからない }
+    put:
+      summary: 子ども情報を更新
+      tags: [children]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: childId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                birthdate: { type: string }
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string }
+                  name: { type: string }
+                  birthdate: { type: string }
+                  createdAt: { type: string, format: date-time }
+        '404': { description: 見つからない }
+    delete:
+      summary: 子どもを削除
+      tags: [children]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: childId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: 削除成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string, example: 子ども情報を削除しました }
+                  deleted_id: { type: string, example: child_001 }
+        '404': { description: 見つからない }
+
+  /api/voice/test:
+    get:
+      summary: 音声APIの動作確認
+      tags: [voice]
+      responses:
+        '200':
+          description: 動作確認OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string, example: Voice API is working }
+                  status: { type: string, example: ok }
+
+  /api/voice/transcribe:
+    post:
+      summary: 文字起こしを保存し、AIフィードバックを生成
+      description: |
+        Web Speech API などで取得した文字起こしを受け取り、Challengeを作成。
+        生成したAIフィードバックを `comment` に保存します。
+      tags: [voice]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [transcript, child_id]
+              properties:
+                transcript:
+                  { type: string, example: 'Hello! Nice to meet you!' }
+                child_id:
+                  {
+                    type: string,
+                    example: '7f64f2b4-8a9b-4b8b-9d0a-123456789abc',
+                  }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  transcript_id:
+                    {
+                      type: string,
+                      example: '7f64f2b4-8a9b-4b8b-9d0a-123456789abc',
+                    }
+                  status: { type: string, example: completed }
+                  comment: { type: string, description: 生成されたAIコメント }
+        '400': { description: child_id不正 など }
+        '404': { description: 子どもが見つからない }
+        '500': { description: AIフィードバック生成エラー }
+
+  /api/voice/transcript/{transcriptId}:
+    get:
+      summary: 文字起こし詳細を取得
+      tags: [voice]
+      parameters:
+        - name: transcriptId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: 文字起こし詳細
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string }
+                  child_id: { type: string }
+                  transcript: { type: string }
+                  comment: { type: string }
+                  created_at: { type: string, format: date-time }
+                  status:
+                    {
+                      type: string,
+                      enum: [processing, completed],
+                      example: completed,
+                    }
+        '404': { description: 見つからない }
+
+  /api/voice/history/{childId}:
+    get:
+      summary: 子どもの音声履歴を取得（完了分）
+      tags: [voice]
+      parameters:
+        - name: childId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: 履歴一覧
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  child_id: { type: string }
+                  transcripts:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: string }
+                        transcript: { type: string }
+                        comment: { type: string }
+                        created_at: { type: string, format: date-time }
+
+  /api/voice/challenge/{challengeId}:
+    get:
+      summary: チャレンジ詳細を取得
+      tags: [voice]
+      parameters:
+        - name: challengeId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: チャレンジ詳細
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string }
+                  child_id: { type: string }
+                  transcript: { type: string }
+                  comment: { type: string }
+                  created_at: { type: string, format: date-time }
+                  status:
+                    {
+                      type: string,
+                      enum: [processing, completed],
+                      example: completed,
+                    }
+        '404': { description: 見つからない }
+
+  /ai-feedback/generate/{challengeId}:
+    post:
+      summary: チャレンジのAIフィードバック生成（保存）
+      tags: [ai-feedback]
+      parameters:
+        - name: challengeId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: フィードバック生成成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  challenge_id: { type: string }
+                  transcript: { type: string }
+                  original_comment: { type: string, nullable: true }
+                  new_feedback: { type: string }
+                  child_age: { type: integer, nullable: true }
+        '404': { description: チャレンジが見つからない }
+        '400': { description: 文字起こしが無い など }
+        '500': { description: 生成失敗 }
+
+  /ai-feedback/preview/{challengeId}:
+    post:
+      summary: チャレンジのAIフィードバックをプレビュー（保存しない）
+      tags: [ai-feedback]
+      parameters:
+        - name: challengeId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: プレビュー成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  challenge_id: { type: string }
+                  transcript: { type: string }
+                  current_comment: { type: string, nullable: true }
+                  preview_feedback: { type: string }
+                  child_age: { type: integer, nullable: true }
+        '404': { description: チャレンジが見つからない }
+        '400': { description: 文字起こしが無い など }
+        '500': { description: 生成失敗 }
+
+  /ai-feedback/auto-analyze:
+    post:
+      summary: 未分析チャレンジの一括AI分析
+      tags: [ai-feedback]
+      responses:
+        '200':
+          description: 自動分析の結果
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  message: { type: string }
+                  processed_count: { type: integer }
+                  success_count: { type: integer }
+                  error_count: { type: integer }
+        '500': { description: 分析失敗 }
+
+  /ai-feedback/analysis-status:
+    get:
+      summary: 分析状況の統計
+      tags: [ai-feedback]
+      responses:
+        '200':
+          description: 分析状況の統計
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_with_transcript: { type: integer, example: 42 }
+                  analyzed: { type: integer, example: 30 }
+                  unanalyzed: { type: integer, example: 12 }
+                  analysis_rate: { type: number, example: 71.4 }
