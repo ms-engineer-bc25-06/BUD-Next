@@ -32,10 +32,17 @@ export default function ChildEditPage() {
       try {
         setIsFetching(true);
         const childData = await api.children.get(childId);
-        setChild(childData);
-        setNickname(childData.nickname || childData.name || '');
-        if (childData.birthdate) {
-          setBirthDate(parseISO(childData.birthdate));
+
+        // 型チェック
+        if (childData && typeof childData === 'object' && 'name' in childData) {
+          const child = childData as Child;
+          setChild(child);
+          setNickname(child.nickname || child.name || '');
+          if (child.birthdate) {
+            setBirthDate(parseISO(child.birthdate));
+          }
+        } else {
+          throw new Error('Invalid child data');
         }
       } catch (error) {
         console.error('子ども情報取得エラー:', error);

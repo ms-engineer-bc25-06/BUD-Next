@@ -78,7 +78,8 @@ export function useChildren() {
       console.log('🔍 認証済み、実APIを呼び出します');
 
       // APIから子どもリストを取得
-      const data: ApiChild[] = await api.children.list();
+      const data = (await api.children.list()) as ApiChild[];
+
       console.log('✅ 実APIデータ:', data);
 
       // データを処理して年齢を計算

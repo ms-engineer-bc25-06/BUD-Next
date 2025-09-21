@@ -50,7 +50,7 @@ export function useRecordDetail(recordId: string, childId: string) {
         setLoading(true);
         setError(null);
 
-        const data = await api.voice.getChallenge(recordId);
+        const data = await api.voice.getChallenge(recordId) as any;
 
         if (data.child_id !== childId) {
           throw new Error('指定されたチャレンジ記録が見つかりませんでした');

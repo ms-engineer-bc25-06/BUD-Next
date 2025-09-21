@@ -54,27 +54,45 @@ export function useHistoryRecords(selectedChildId: string) {
     const fetchRecords = async () => {
       try {
         setLoading(true);
+        setError(null);
 
-        const data = await api.voice.getHistory(selectedChildId);
+        console.log('履歴取得開始:', selectedChildId);
+        const data = (await api.voice.getHistory(selectedChildId)) as any;
+        console.log('取得したデータ:', data);
 
-        const recordsForChild = data.transcripts
-          .map((item: { id: string; created_at: string; transcript?: string }) => ({
-            id: item.id,
-            childId: selectedChildId,
-            date: item.created_at,
-            summary: item.transcript
-              ? item.transcript.length > 30
-                ? item.transcript.substring(0, 30) + '...'
-                : item.transcript
-              : 'チャレンジ記録',
-          }))
+        // データ構造の安全な処理
+        const transcripts = data?.transcripts || [];
+        console.log('transcripts配列:', transcripts);
+
+        const recordsForChild = transcripts
+          .filter((item: any) => item && item.id) // 有効なアイテムのみフィルター
+          .map((item: { id: string; created_at: string; transcript?: string }) => {
+            // transcriptの安全な処理
+            let summary = 'チャレンジ記録';
+
+            if (item.transcript && typeof item.transcript === 'string') {
+              summary =
+                item.transcript.length > 30
+                  ? item.transcript.substring(0, 30) + '...'
+                  : item.transcript;
+            }
+
+            return {
+              id: item.id,
+              childId: selectedChildId,
+              date: item.created_at || new Date().toISOString(),
+              summary,
+            };
+          })
           .sort(
             (a: ChallengeRecord, b: ChallengeRecord) =>
               parseISO(b.date).getTime() - parseISO(a.date).getTime()
           );
 
+        console.log('処理後のレコード:', recordsForChild);
         setRecords(recordsForChild);
 
+        // 今月のチャレンジ数計算
         const currentMonth = new Date();
         const count = recordsForChild.filter((record: ChallengeRecord) =>
           isSameMonth(parseISO(record.date), currentMonth)

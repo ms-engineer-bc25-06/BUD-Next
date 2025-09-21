@@ -14,7 +14,7 @@
     "jsx": "preserve",
     "incremental": true,
     "baseUrl": "src",
-    "types": ["vitest/globals", "node", "@testing-library/jest-dom"],
+    "types": ["node"],
     "plugins": [
       {
         "name": "next"

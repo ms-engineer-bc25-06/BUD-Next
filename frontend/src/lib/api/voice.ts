@@ -1,5 +1,5 @@
-import { ApiService } from '@/services/apiService';
 import { API_CONFIG } from '@/constants/api';
+import { ApiService } from '@/services/apiService';
 import { logger } from '@/utils/logger';
 
 const { ENDPOINTS } = API_CONFIG;
@@ -83,7 +83,7 @@ export const voiceApi = {
   // チャレンジ詳細取得
   getChallenge: async (challengeId: string) => {
     try {
-      return await ApiService.get(ENDPOINTS.VOICE.CHALLENGE(challengeId));
+      return await ApiService.get(`${ENDPOINTS.VOICE.CHALLENGE}/${challengeId}`);
     } catch (error) {
       logger.error('チャレンジ詳細の取得に失敗:', error);
       throw error;

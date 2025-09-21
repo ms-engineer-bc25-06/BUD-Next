@@ -1,7 +1,7 @@
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { MessageSquareHeart, ThumbsUp } from 'lucide-react';
+import { MessageSquare, ThumbsUp } from 'lucide-react';
 
 interface AIFeedbackProps {
   praise: string;
@@ -29,7 +29,7 @@ export function AIFeedbackCard({ aiFeedback }: AIFeedbackCardProps) {
         {aiFeedback.advice && (
           <div>
             <h3 className="flex items-center gap-2 text-lg font-semibold text-orange-700 mb-1">
-              <MessageSquareHeart className="h-5 w-5 text-pink-500" />
+              <MessageSquare className="h-5 w-5 text-pink-500" />
               アドバイス
             </h3>
             <p className="text-gray-700 text-base leading-relaxed">{aiFeedback.advice}</p>
