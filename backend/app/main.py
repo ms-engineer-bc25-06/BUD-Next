@@ -101,3 +101,49 @@ app.include_router(voice_router)
 
 # Speech-to-Text API
 app.include_router(speech.router)
+
+
+# デバッグ用: テーブル構造確認エンドポイント
+@app.get("/api/debug/tables")
+def debug_tables(db: Session = Depends(get_db)):
+    """データベーステーブル構造を確認（デバッグ用）"""
+    from sqlalchemy import text
+    try:
+        # テーブル一覧を取得
+        result = db.execute(text("""
+            SELECT table_name
+            FROM information_schema.tables
+            WHERE table_schema = 'public'
+            ORDER BY table_name
+        """))
+        tables = [row[0] for row in result.fetchall()]
+
+        # usersテーブルの構造を取得
+        users_structure = None
+        if 'users' in tables:
+            result = db.execute(text("""
+                SELECT column_name, data_type, is_nullable, column_default
+                FROM information_schema.columns
+                WHERE table_name = 'users'
+                ORDER BY ordinal_position
+            """))
+            users_structure = [
+                {
+                    "column": row[0],
+                    "type": row[1],
+                    "nullable": row[2],
+                    "default": row[3]
+                }
+                for row in result.fetchall()
+            ]
+
+        return {
+            "tables": tables,
+            "users_table_structure": users_structure,
+            "database_connection": "success"
+        }
+    except Exception as e:
+        return {
+            "error": str(e),
+            "database_connection": "failed"
+        }
