@@ -72,16 +72,26 @@ export default function RecordCompletionPage() {
         }
 
         // ai_feedbackをJSON.parseしてfeedback_shortを取得（失敗時は従来表示）
+        // 🟩【修正ポイント】まずcommentではなくai_feedbackを優先的に使う
         let aiText = data.ai_feedback || data.comment || 'AIフィードバックを生成中です...';
+
         let phraseSuggestion = undefined;
+
         try {
+          // 🟩【修正ポイント】ai_feedbackかcommentがJSON形式ならパースする
           const feedbackData = data.ai_feedback || data.comment;
-          if (feedbackData && feedbackData !== 'AIフィードバックを生成中です...') {
-            const parsed = JSON.parse(feedbackData);
+
+          if (
+            feedbackData &&
+            typeof feedbackData === 'string' &&
+            feedbackData.trim().startsWith('{') // 🟩JSONっぽいかチェック
+          ) {
+            const parsed = JSON.parse(feedbackData); // 🟩ここが「パース」
             aiText = parsed?.feedback_short || aiText;
             phraseSuggestion = parsed?.phrase_suggestion;
           }
-        } catch {
+        } catch (e) {
+          console.error('AIフィードバックのJSONパースに失敗:', e);
           // JSON parseに失敗した場合は元のテキストを使用（旧データ対応）
         }
 
