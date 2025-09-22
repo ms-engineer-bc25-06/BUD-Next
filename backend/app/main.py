@@ -37,8 +37,9 @@ app.add_middleware(
         "http://localhost:3000",
         "http://localhost:3001", 
         "http://localhost:3002",
-        "https://bud-next.vercel.app",           # 元のVercel URL
-        "https://bud-next-mfcr.vercel.app",     # 新しいVercel URL
+        "https://bud-next.vercel.app",
+        "https://bud-next-mfcr.vercel.app",
+        "https://bud-next-mfcr-l4e3ozd55-ryokomatsumoto929s-projects.vercel.app",  # 新しいURL
         "https://section9-team-c.vercel.app",
         "https://*.vercel.app",
         "http://127.0.0.1:3002"  
