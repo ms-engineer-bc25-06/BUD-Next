@@ -1,6 +1,7 @@
 // API関連定数
 export const API_CONFIG = {
-  BASE_URL: process.env.NEXT_PUBLIC_API_URL || 'https://bud-next-backend-688045425116.asia-northeast1.run.app',
+  BASE_URL: 'https://bud-next-backend-688045425116.asia-northeast1.run.app',
+  // 以下は同じ
   ENDPOINTS: {
     HEALTH: '/health',
     AUTH: {
