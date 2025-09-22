@@ -22,43 +22,68 @@ logger = get_logger(__name__)
 # 監視システム開始
 start_monitoring()
 
-
 # Pydanticモデル定義
 class LoginRequest(BaseModel):
     idToken: str
 
-
 app = FastAPI(title="BUD Backend API")
+
+# CORS設定 - 許可するオリジンを整理
+allowed_origins = [
+    # ローカル開発環境
+    "http://localhost:3000",
+    "http://localhost:3001", 
+    "http://localhost:3002",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:3001",
+    "http://127.0.0.1:3002",
+    
+    # Vercel本番環境 - 旧プロジェクト
+    "https://bud-next.vercel.app",
+    "https://bud-next-mfcr.vercel.app",
+    "https://bud-next-mfcr-l4e3ozd55-ryokomatsumoto929s-projects.vercel.app",
+    "https://bud-next-mfcr-git-main-ryokomatsumoto929s-projects.vercel.app",
+    "https://bud-next-mfcr-4jeqmnavv-ryokomatsumoto929s-projects.vercel.app",
+    "https://bud-next-mfcr-cmsf66lqa-ryokomatsumoto929s-projects.vercel.app",
+    "https://bud-next-mfcr-fxk4pr0hf-ryokomatsumoto929s-projects.vercel.app",
+    "https://bud-next-mfcr-77o46ezf8-ryokomatsumoto929s-projects.vercel.app",
+    
+    # Vercel本番環境 - 新プロジェクト (bud-next-v2)
+    "https://bud-next-v2.vercel.app",
+    "https://bud-next-v2-ow73blm79-ryokomatsumoto929s-projects.vercel.app",
+    
+    # その他
+    "https://section9-team-c.vercel.app",
+]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:3001", 
-        "http://localhost:3002",
-        "https://bud-next.vercel.app",
-        "https://bud-next-mfcr.vercel.app",
-        "https://bud-next-mfcr-l4e3ozd55-ryokomatsumoto929s-projects.vercel.app",
-        "https://bud-next-mfcr-git-main-ryokomatsumoto929s-projects.vercel.app",  # 新しいURL
-        "https://bud-next-mfcr-4jeqmnavv-ryokomatsumoto929s-projects.vercel.app",  # 別のURL
-        "https://section9-team-c.vercel.app",
-        "http://127.0.0.1:3002"  
-    ],
+    allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allow_headers=[
+        "Accept",
+        "Accept-Language", 
+        "Content-Language",
+        "Content-Type",
+        "Authorization",
+        "X-Requested-With",
+        "Origin",
+        "X-CSRFToken",
+        "X-Request-ID"
+    ],
+    expose_headers=["X-Request-ID"],
+    max_age=600,
 )
 
-# 他のミドルウェアは後に追加
+# 他のミドルウェア
 app.add_middleware(TraceabilityMiddleware)
 app.add_middleware(PerformanceMonitoringMiddleware)
 app.add_middleware(ErrorHandlerMiddleware)
 
-
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "service": "bud-backend"}
-
 
 @app.post("/api/auth/login")
 async def login(request: LoginRequest, db: Session = Depends(get_db)):
@@ -73,7 +98,7 @@ async def login(request: LoginRequest, db: Session = Depends(get_db)):
         email = decoded_token.get("email", "")
         name = decoded_token.get("name", "")
 
-        print(f"✅ 認証成功: {email}")
+        logger.info(f"認証成功: {email}")
 
         # ユーザー取得/作成
         user_service = UserService(db)
@@ -89,9 +114,8 @@ async def login(request: LoginRequest, db: Session = Depends(get_db)):
         }
 
     except Exception as error:
-        print(f"Firebase認証統合エラー: {error}")
+        logger.error(f"Firebase認証統合エラー: {error}")
         raise HTTPException(status_code=500, detail="ログイン処理に失敗しました")
-
 
 # API ルーター
 app.include_router(children.router, prefix="/api/children", tags=["children"])
@@ -104,7 +128,6 @@ app.include_router(voice_router)
 
 # Speech-to-Text API
 app.include_router(speech.router)
-
 
 # デバッグ用: テーブル構造確認エンドポイント
 @app.get("/api/debug/tables")
