@@ -1,24 +1,24 @@
 import os
-from typing import AsyncGenerator
-
+from typing import Generator
 from sqlalchemy import create_engine, text
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
+import logging
+
+logger = logging.getLogger(__name__)
 
 # 環境変数から直接DATABASE_URLを取得
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@db:5432/bud")
 
-# psycopg2が含まれている場合は除去してからasyncpgに変換
+logger.info(f"🔍 DATABASE_URL configured: {DATABASE_URL[:50]}...")
+
+# psycopg2が含まれている場合は除去（Cloud SQLでは不要）
 if "+psycopg2" in DATABASE_URL:
     DATABASE_URL = DATABASE_URL.replace("+psycopg2", "")
-    print(f"🔧 psycopg2除去後: {DATABASE_URL}")
+    logger.info(f"🔧 psycopg2除去後: {DATABASE_URL[:50]}...")
 
-# asyncpg用のURLに変換
-ASYNC_DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
-
-# 非同期エンジンの作成
-async_engine = create_async_engine(
-    ASYNC_DATABASE_URL,
+# 同期エンジンのみ使用（非同期エンジンを削除）
+engine = create_engine(
+    DATABASE_URL,
     pool_size=20,
     max_overflow=30,
     pool_pre_ping=True,
@@ -26,59 +26,46 @@ async_engine = create_async_engine(
     echo=False,
 )
 
-# 同期エンジン（Alembicで使用）
-sync_engine = create_engine(DATABASE_URL)
-
-# 同期セッション（transcription.pyで使用）
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=sync_engine)
-
-# 非同期セッションメーカー
-AsyncSessionLocal = sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
+# 同期セッション
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # Base class for models
 Base = declarative_base()
 
-
 # 同期用の依存性注入関数
-def get_db():
+def get_db() -> Generator:
+    """データベースセッションの依存性注入"""
     db = SessionLocal()
     try:
+        logger.debug("データベースセッション作成")
         yield db
+    except Exception as e:
+        logger.error(f"データベースセッションエラー: {e}")
+        db.rollback()
+        raise
     finally:
+        logger.debug("データベースセッション終了")
         db.close()
 
-
-# 非同期用の依存性注入関数
-async def get_async_db() -> AsyncGenerator[AsyncSession, None]:
-    async with AsyncSessionLocal() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
-        finally:
-            await session.close()
-
-
 # データベース接続テスト関数
-async def test_connection():
+def test_database_connection() -> bool:
+    """データベース接続テスト"""
     try:
-        async with AsyncSessionLocal() as session:
-            await session.execute(text("SELECT 1"))
-        print("✅ データベース接続成功")
+        db = SessionLocal()
+        result = db.execute(text("SELECT 1")).fetchone()
+        db.close()
+        logger.info("✅ データベース接続テスト成功")
         return True
     except Exception as e:
-        print(f"❌ データベース接続失敗: {e}")
+        logger.error(f"❌ データベース接続テスト失敗: {e}")
         return False
 
-
-# 後方互換性のための関数
-async def connect_to_db():
-    """データベース接続初期化"""
-    return await test_connection()
-
-
-async def disconnect_from_db():
-    """データベース接続終了"""
-    await async_engine.dispose()
+# データベース初期化（必要に応じて）
+def create_tables():
+    """テーブル作成"""
+    try:
+        Base.metadata.create_all(bind=engine)
+        logger.info("✅ テーブル作成完了")
+    except Exception as e:
+        logger.error(f"❌ テーブル作成失敗: {e}")
+        raise

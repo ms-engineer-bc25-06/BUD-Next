@@ -1,4 +1,3 @@
-import asyncio
 import os
 from typing import Optional
 
@@ -10,7 +9,7 @@ class AIFeedbackService:
     def __init__(self):
         self.client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-    async def generate_feedback(
+    def generate_feedback(
         self,
         transcript: str,
         child_age: Optional[int] = None,
@@ -18,13 +17,13 @@ class AIFeedbackService:
     ) -> str:
         """統合されたAIフィードバック生成"""
         if feedback_type == "english_challenge":
-            return await self._generate_english_challenge_feedback(transcript, child_age)
+            return self._generate_english_challenge_feedback(transcript, child_age)
         elif feedback_type == "general":
-            return await self._generate_general_feedback(transcript)
+            return self._generate_general_feedback(transcript)
         else:
-            return await self._generate_english_challenge_feedback(transcript, child_age)
+            return self._generate_english_challenge_feedback(transcript, child_age)
 
-    async def _generate_english_challenge_feedback(
+    def _generate_english_challenge_feedback(
         self, transcript: str, child_age: Optional[int] = None
     ) -> str:
         """英語チャレンジ用フィードバック（JSON出力・温かい評価観点付き）"""
@@ -55,7 +54,7 @@ class AIFeedbackService:
 """
 
         try:
-            response = await self._call_openai_api_with_system(
+            response = self._call_openai_api_with_system(
                 prompt=user_prompt,
                 system_message=system_message,
                 model="gpt-4o-mini",
@@ -66,7 +65,7 @@ class AIFeedbackService:
         except Exception:
             return f"「{transcript}」に挑戦できてすごいよ！外国人に話しかけた勇気が素晴らしい！次も頑張ろう！😊"
 
-    async def _generate_general_feedback(self, transcribed_text: str) -> str:
+    def _generate_general_feedback(self, transcribed_text: str) -> str:
         """一般的なフィードバック"""
         try:
             prompt = f"""
@@ -83,7 +82,7 @@ class AIFeedbackService:
 フィードバックは200文字以内で、子供が理解しやすい言葉で書いてください。
 """
 
-            response = await self._call_openai_api_with_system(
+            response = self._call_openai_api_with_system(
                 prompt,
                 system_message="あなたは子供たちを励ます優しい先生です。",
                 model="gpt-4o-mini",
@@ -95,22 +94,17 @@ class AIFeedbackService:
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"フィードバック生成エラー: {str(e)}")
 
-    async def _call_openai_api(self, prompt: str):
+    def _call_openai_api(self, prompt: str):
         """OpenAI API呼び出し"""
-        loop = asyncio.get_event_loop()
+        return self.client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=150,
+            temperature=0.7,
+            timeout=30.0,
+        )
 
-        def _sync_call():
-            return self.client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=150,
-                temperature=0.7,
-                timeout=30.0,
-            )
-
-        return await loop.run_in_executor(None, _sync_call)
-
-    async def _call_openai_api_with_system(
+    def _call_openai_api_with_system(
         self,
         prompt: str,
         system_message: str,
@@ -119,18 +113,13 @@ class AIFeedbackService:
         temperature: float = 0.7,
     ):
         """OpenAI API呼び出し（システムメッセージ付き）"""
-        loop = asyncio.get_event_loop()
-
-        def _sync_call():
-            return self.client.chat.completions.create(
-                model=model,
-                messages=[
-                    {"role": "system", "content": system_message},
-                    {"role": "user", "content": prompt},
-                ],
-                max_tokens=max_tokens,
-                temperature=temperature,
-                timeout=30.0,
-            )
-
-        return await loop.run_in_executor(None, _sync_call)
+        return self.client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": system_message},
+                {"role": "user", "content": prompt},
+            ],
+            max_tokens=max_tokens,
+            temperature=temperature,
+            timeout=30.0,
+        )

@@ -4,11 +4,12 @@ from datetime import datetime, timezone
 import psutil
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import text  # テキストクエリ用
-from sqlalchemy.ext.asyncio import AsyncSession  # 非同期Session
+from sqlalchemy.orm import Session  # 同期Session
 
 from app.core.cache import get_cache_stats
 from app.core.config import settings
-from app.core.database import database, get_db
+from app.core.database import get_db
+
 from app.core.logging_config import get_logger, log_server_status
 from app.core.resource_monitor import get_resource_summary, resource_monitor
 
@@ -28,7 +29,7 @@ async def health_check():
 
 
 @router.get("/detailed")
-async def detailed_health_check(db: AsyncSession = Depends(get_db)):
+def detailed_health_check(db: Session = Depends(get_db)):
     """詳細なヘルスチェック（DB接続・システム情報含む）"""
     start_time = time.time()
 
@@ -48,30 +49,27 @@ async def detailed_health_check(db: AsyncSession = Depends(get_db)):
         },
     }
 
-    # データベース接続チェック（非同期）
+    # データベース接続チェック（同期）
     try:
-        await db.execute(text("SELECT 1"))  # 非同期でテストクエリ実行
+        db.execute(text("SELECT 1"))  # 同期でテストクエリ実行
         db_status = "healthy"
         db_response_time = round((time.time() - start_time) * 1000, 2)  # レスポンス時間計測
-    except Exception:
+        logger.info("✅ Database connection successful")
+    except Exception as e:
         db_status = "unhealthy"
         db_response_time = None
         health_status["status"] = "unhealthy"
+        logger.error(f"❌ Database connection failed: {str(e)}")
+        logger.error(f"❌ Exception type: {type(e).__name__}")
 
     health_status["checks"]["database"] = {
         "status": db_status,
         "response_time_ms": db_response_time,
     }
 
-    # 非同期データベース接続チェック
-    try:
-        await database.execute("SELECT 1")
-        async_db_status = "healthy"
-    except Exception:
-        async_db_status = "unhealthy"
-        health_status["status"] = "unhealthy"
-
-    health_status["checks"]["async_database"] = {"status": async_db_status}
+    # 非同期データベース接続チェック（重複のため削除）
+    # 既に上記でdb.execute()を実行しているため、async_databaseチェックは不要
+    # health_status["checks"]["async_database"] = {"status": db_status}
 
     # システムリソース情報を取得
     cpu_percent = psutil.cpu_percent()
@@ -114,11 +112,11 @@ async def detailed_health_check(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/readiness")
-async def readiness_check(db: AsyncSession = Depends(get_db)):
+def readiness_check(db: Session = Depends(get_db)):
     """アプリケーションの準備状態チェック（Kubernetes等で使用）"""
     try:
         # データベース接続確認
-        await db.execute(text("SELECT 1"))
+        db.execute(text("SELECT 1"))
         return {"status": "ready"}
     except Exception as e:
         # DB接続失敗時は準備未完了
@@ -126,6 +124,6 @@ async def readiness_check(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/liveness")
-async def liveness_check():
+def liveness_check():
     """アプリケーションの生存確認（Kubernetes等で使用）"""
     return {"status": "alive", "timestamp": datetime.now(timezone.utc).isoformat()}

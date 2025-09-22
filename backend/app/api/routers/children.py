@@ -14,8 +14,8 @@ from app.utils.auth import get_current_user
 router = APIRouter()
 
 
-@router.get("/", response_model=List[ChildSchema])
-async def get_children(
+@router.get("", response_model=List[ChildSchema])
+def get_children(
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
@@ -46,7 +46,7 @@ async def get_children(
 
 
 @router.get("/{child_id}", response_model=ChildSchema)
-async def get_child(
+def get_child(
     child_id: str,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user),
@@ -81,8 +81,8 @@ async def get_child(
         raise HTTPException(status_code=500, detail=str(error))
 
 
-@router.post("/", response_model=ChildSchema)
-async def create_child(
+@router.post("", response_model=ChildSchema)
+def create_child(
     child_data: ChildCreate,
     db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user),
@@ -138,7 +138,7 @@ async def create_child(
 
 
 @router.put("/{child_id}", response_model=ChildSchema)
-async def update_child(
+def update_child(
     child_id: str,
     child_data: ChildCreate,
     db: Session = Depends(get_db),
@@ -206,7 +206,7 @@ async def update_child(
 
 
 @router.delete("/{child_id}")
-async def delete_child(
+def delete_child(
     child_id: str, db: Session = Depends(get_db), current_user: dict = Depends(get_current_user)
 ):
     """子ども情報を削除する（関連データも含めて）"""
