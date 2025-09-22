@@ -6,6 +6,16 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  env: {
+    NEXT_PUBLIC_API_URL: 'https://bud-next-backend-688045425116.asia-northeast1.run.app',
+  },
+  experimental: {
+    forceSwcTransforms: true,
+  },
+  // 完全なキャッシュクリア
+  generateBuildId: () => {
+    return 'build-' + new Date().getTime()
+  },
 
   // 🚀 プロキシ設定を追加（CORS回避）
   async rewrites() {
