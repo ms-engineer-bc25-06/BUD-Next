@@ -16,8 +16,10 @@ export const API_CONFIG = {
       TRANSCRIBE: '/api/voice/transcribe',
       TRANSCRIPT: (id: string) => `/api/voice/transcript/${id}`,
       HISTORY: (childId: string) => `/api/voice/history/${childId}`,
+
       CHALLENGE: '/api/voice/challenge',
     },
+
     FEEDBACK: {
       GENERATE: (transcriptId: string) => `/api/voice/transcript/${transcriptId}`,
       DELETE: (challengeId: string) => `/api/ai-feedback/${challengeId}`,
