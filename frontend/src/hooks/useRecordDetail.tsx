@@ -3,6 +3,17 @@
 import { api } from '@/lib/api';
 import { useEffect, useState } from 'react';
 
+// 🟩 追加: APIレスポンス型（バックエンドに合わせて定義）
+interface ChallengeResponse {
+  id: string;
+  child_id: string;
+  transcript: string;
+  ai_feedback?: string; // JSON文字列で返ってくる場合がある
+  comment?: string; // 旧仕様の文字列
+  created_at: string;
+}
+
+// 🟩 useRecordDetail が返すレコード型
 interface RecordDetail {
   id: string;
   childId: string;
@@ -21,6 +32,7 @@ export function useRecordDetail(recordId: string, childId: string) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // コメントを2分割する関数
   const splitAIFeedback = (comment: string) => {
     const sentences = comment.split(/[。！\n]/).filter((s) => s.trim());
 
@@ -50,27 +62,34 @@ export function useRecordDetail(recordId: string, childId: string) {
         setLoading(true);
         setError(null);
 
-        const data = await api.voice.getChallenge(recordId);
+        // 🟩 型を明示する
+        const data = (await api.voice.getChallenge(recordId)) as ChallengeResponse;
 
         if (data.child_id !== childId) {
           throw new Error('指定されたチャレンジ記録が見つかりませんでした');
         }
 
-        const comment = data.comment || 'AIフィードバックを生成中です...';
+        // 🟩 AIフィードバックを抽出
+        const rawFeedback = data.ai_feedback || data.comment || 'AIフィードバックを生成中です...';
+
         let praise = '';
         let advice = '';
         let phraseData: { en: string; ja: string } | null = null;
 
         try {
-          const parsed = JSON.parse(comment);
+          // JSON形式ならパース
+          const parsed = JSON.parse(rawFeedback);
+          console.log('✅ Parsed AI Feedback:', parsed);
           praise = parsed?.feedback_short || '';
           phraseData = parsed?.phrase_suggestion || null;
         } catch {
-          const splitComment = splitAIFeedback(comment);
+          // 旧仕様の文字列を2分割
+          const splitComment = splitAIFeedback(rawFeedback);
           praise = splitComment.praise;
           advice = splitComment.advice;
         }
 
+        // 🟩 画面用に整形
         setRecord({
           id: data.id,
           childId: data.child_id,
