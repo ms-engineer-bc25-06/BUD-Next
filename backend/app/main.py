@@ -30,7 +30,6 @@ class LoginRequest(BaseModel):
 
 app = FastAPI(title="BUD Backend API")
 
-# CORSを最初に追加（重要！）
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -39,9 +38,10 @@ app.add_middleware(
         "http://localhost:3002",
         "https://bud-next.vercel.app",
         "https://bud-next-mfcr.vercel.app",
-        "https://bud-next-mfcr-l4e3ozd55-ryokomatsumoto929s-projects.vercel.app",  # 新しいURL
+        "https://bud-next-mfcr-l4e3ozd55-ryokomatsumoto929s-projects.vercel.app",
+        "https://bud-next-mfcr-git-main-ryokomatsumoto929s-projects.vercel.app",  # 新しいURL
+        "https://bud-next-mfcr-4jeqmnavv-ryokomatsumoto929s-projects.vercel.app",  # 別のURL
         "https://section9-team-c.vercel.app",
-        "https://*.vercel.app",
         "http://127.0.0.1:3002"  
     ],
     allow_credentials=True,
