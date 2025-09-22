@@ -12,7 +12,7 @@ router = APIRouter(prefix="/ai-feedback", tags=["ai-feedback"])
 
 
 @router.post("/generate/{challenge_id}")
-async def generate_feedback_for_challenge(challenge_id: str, db: Session = Depends(get_db)):
+def generate_feedback_for_challenge(challenge_id: str, db: Session = Depends(get_db)):
     """個別チャレンジのAIフィードバック生成"""
 
     # チャレンジデータを取得
@@ -37,7 +37,7 @@ async def generate_feedback_for_challenge(challenge_id: str, db: Session = Depen
     try:
         # AIフィードバック生成
         ai_service = AIFeedbackService()
-        new_feedback = await ai_service.generate_feedback(
+        new_feedback = ai_service.generate_feedback(
             transcript=challenge.transcript, child_age=child_age
         )
 
@@ -62,7 +62,7 @@ async def generate_feedback_for_challenge(challenge_id: str, db: Session = Depen
 
 
 @router.post("/preview/{challenge_id}")
-async def preview_feedback(challenge_id: str, db: Session = Depends(get_db)):
+def preview_feedback(challenge_id: str, db: Session = Depends(get_db)):
     """AIフィードバックのプレビュー（DBは更新しない）"""
 
     challenge = db.query(Challenge).filter(Challenge.id == challenge_id).first()
@@ -85,7 +85,7 @@ async def preview_feedback(challenge_id: str, db: Session = Depends(get_db)):
 
     try:
         ai_service = AIFeedbackService()
-        preview_feedback = await ai_service.generate_feedback(
+        preview_feedback = ai_service.generate_feedback(
             transcript=challenge.transcript, child_age=child_age
         )
 
@@ -103,7 +103,7 @@ async def preview_feedback(challenge_id: str, db: Session = Depends(get_db)):
 
 
 @router.post("/auto-analyze")
-async def auto_analyze_challenges(db: Session = Depends(get_db)):
+def auto_analyze_challenges(db: Session = Depends(get_db)):
     """未分析チャレンジの自動AI分析"""
 
     try:
@@ -145,7 +145,7 @@ async def auto_analyze_challenges(db: Session = Depends(get_db)):
                     )
 
                 # AI分析実行
-                feedback = await ai_service.generate_feedback(
+                feedback = ai_service.generate_feedback(
                     transcript=challenge.transcript, child_age=child_age
                 )
 
@@ -174,7 +174,7 @@ async def auto_analyze_challenges(db: Session = Depends(get_db)):
 
 
 @router.get("/analysis-status")
-async def get_analysis_status(db: Session = Depends(get_db)):
+def get_analysis_status(db: Session = Depends(get_db)):
     """分析状況の確認"""
 
     total_with_transcript = (
@@ -207,7 +207,7 @@ async def get_analysis_status(db: Session = Depends(get_db)):
 
 
 @router.delete("/{challenge_id}")
-async def delete_challenge(challenge_id: str, db: Session = Depends(get_db)):
+def delete_challenge(challenge_id: str, db: Session = Depends(get_db)):
     """チャレンジ記録削除"""
 
     challenge = db.query(Challenge).filter(Challenge.id == challenge_id).first()

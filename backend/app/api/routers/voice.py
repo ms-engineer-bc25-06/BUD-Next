@@ -4,9 +4,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
-from app.core.database import get_async_db
+from app.core.database import get_db
 from app.models.challenge import Challenge
 from app.models.child import Child
 from app.models.user import User
@@ -32,9 +32,9 @@ def test_endpoint():
 
 
 @router.post("/transcribe")
-async def transcribe_text(
+def transcribe_text(
     request: TranscribeRequest,
-    db: AsyncSession = Depends(get_async_db),
+    db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
     """文字起こし結果を受け取りDBに保存し、AIフィードバックを生成"""
@@ -48,7 +48,7 @@ async def transcribe_text(
 
     try:
         # 現在のユーザーを取得
-        user_result = await db.execute(
+        user_result = db.execute(
             select(User).where(User.firebase_uid == current_user["user_id"])
         )
         user = user_result.scalars().first()
@@ -57,7 +57,7 @@ async def transcribe_text(
 
         # 親子関係を検証してから子どもを取得
         child_uuid = UUID(child_id)
-        result = await db.execute(
+        result = db.execute(
             select(Child).where(Child.id == child_uuid, Child.user_id == user.id)
         )
         child = result.scalars().first()
@@ -69,8 +69,8 @@ async def transcribe_text(
         # Challenge作成
         challenge = Challenge(child_id=child_uuid, transcript=transcript)
         db.add(challenge)
-        await db.commit()
-        await db.refresh(challenge)
+        db.commit()
+        db.refresh(challenge)
 
         child_name = child.nickname or child.name or "お子さま"
 
@@ -94,7 +94,7 @@ async def transcribe_text(
             print("🤖 AIフィードバック生成開始...")
             print(f"   - transcript: {transcript[:50]}...")
             print(f"   - child_age: {child_age}")
-            feedback = await ai_feedback_service.generate_feedback(
+            feedback = ai_feedback_service.generate_feedback(
                 transcript=transcript,
                 child_age=child_age,
                 feedback_type="english_challenge",  # 英語チャレンジ用の高品質プロンプト
@@ -111,7 +111,7 @@ async def transcribe_text(
         # Challenge更新
         challenge.ai_feedback = feedback
         db.add(challenge)
-        await db.commit()
+        db.commit()
 
         return {"transcript_id": str(challenge.id), "status": "completed", "comment": feedback}
 
@@ -134,7 +134,7 @@ async def transcribe_text(
             try:
                 challenge.ai_feedback = f"AIフィードバック生成エラー: {str(e)}"
                 db.add(challenge)
-                await db.commit()
+                db.commit()
             except Exception as commit_error:
                 print(f"❌ Challenge更新エラー: {commit_error}")
 
@@ -148,29 +148,29 @@ async def transcribe_text(
 
 
 @router.get("/transcript/{transcript_id}")
-async def get_transcript(
+def get_transcript(
     transcript_id: str,
-    db: AsyncSession = Depends(get_async_db),
+    db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
     """音声認識結果の取得"""
 
-    # UUID変換して非同期クエリ実行
+    # UUID変換してクエリ実行
     # 現在のユーザーを取得
-    user_result = await db.execute(select(User).where(User.firebase_uid == current_user["user_id"]))
+    user_result = db.execute(select(User).where(User.firebase_uid == current_user["user_id"]))
     user = user_result.scalars().first()
     if not user:
         raise HTTPException(status_code=404, detail="ユーザーが見つかりません")
 
     # チャレンジを取得
     transcript_uuid = UUID(transcript_id)
-    result = await db.execute(select(Challenge).where(Challenge.id == transcript_uuid))
+    result = db.execute(select(Challenge).where(Challenge.id == transcript_uuid))
     challenge = result.scalars().first()
     if not challenge:
         raise HTTPException(status_code=404, detail="音声記録が見つかりません")
 
     # 親子関係を検証
-    child_result = await db.execute(
+    child_result = db.execute(
         select(Child).where(
             Child.id == challenge.child_id,
             Child.user_id == user.id,
@@ -191,22 +191,22 @@ async def get_transcript(
 
 
 @router.get("/history/{child_id}")
-async def get_voice_history(
+def get_voice_history(
     child_id: str,
-    db: AsyncSession = Depends(get_async_db),
+    db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
     """子供の音声認識履歴を取得"""
 
     # 現在のユーザーを取得
-    user_result = await db.execute(select(User).where(User.firebase_uid == current_user["user_id"]))
+    user_result = db.execute(select(User).where(User.firebase_uid == current_user["user_id"]))
     user = user_result.scalars().first()
     if not user:
         raise HTTPException(status_code=404, detail="ユーザーが見つかりません")
 
     # 親子関係を検証
     child_uuid = UUID(child_id)
-    child_result = await db.execute(
+    child_result = db.execute(
         select(Child).where(
             Child.id == child_uuid,
             Child.user_id == user.id,
@@ -217,7 +217,7 @@ async def get_voice_history(
         raise HTTPException(status_code=403, detail="この子供の履歴にアクセスする権限がありません")
 
     # 履歴を取得
-    result = await db.execute(
+    result = db.execute(
         select(Challenge)
         .where(Challenge.child_id == child_uuid)
         .where(Challenge.transcript.is_not(None))
@@ -240,9 +240,9 @@ async def get_voice_history(
 
 
 @router.get("/challenge/{challenge_id}")
-async def get_challenge_detail(
+def get_challenge_detail(
     challenge_id: str,
-    db: AsyncSession = Depends(get_async_db),
+    db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user),
 ):
     """個別のチャレンジ詳細を取得"""
@@ -250,7 +250,7 @@ async def get_challenge_detail(
         print(f"🔍 チャレンジ詳細取得開始: challenge_id={challenge_id}")
 
         # 現在のユーザーを取得
-        user_result = await db.execute(
+        user_result = db.execute(
             select(User).where(User.firebase_uid == current_user["user_id"])
         )
         user = user_result.scalars().first()
@@ -259,13 +259,13 @@ async def get_challenge_detail(
 
         # チャレンジを取得
         challenge_uuid = UUID(challenge_id)
-        result = await db.execute(select(Challenge).where(Challenge.id == challenge_uuid))
+        result = db.execute(select(Challenge).where(Challenge.id == challenge_uuid))
         challenge = result.scalars().first()
         if not challenge:
             raise HTTPException(status_code=404, detail="チャレンジが見つかりません")
 
         # 親子関係を検証
-        child_result = await db.execute(
+        child_result = db.execute(
             select(Child).where(
                 Child.id == challenge.child_id,
                 Child.user_id == user.id,
