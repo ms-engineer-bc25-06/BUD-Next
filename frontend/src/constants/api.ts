@@ -1,9 +1,6 @@
 // API関連定数
 export const API_CONFIG = {
-  BASE_URL: process.env.NEXT_PUBLIC_API_URL ||
-    (typeof window !== 'undefined'
-      ? 'https://bud-next-backend-688045425116.asia-northeast1.run.app'
-      : 'http://localhost:8001'),
+  BASE_URL: process.env.NEXT_PUBLIC_API_URL?.replace('http://', 'https://') || 'http://localhost:8001',
   ENDPOINTS: {
     HEALTH: '/health',
     AUTH: {
